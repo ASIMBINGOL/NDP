@@ -17,9 +17,21 @@ public class Kurum
 
     public bool AktifMi { get; set; } = true;
 
-    // Kurumun ust kurumu ve alt kurumlari
+    // Ust kurum ve alt kurum iliskisi
     public Kurum? UstKurum { get; set; }
 
     public ICollection<Kurum> AltKurumlar { get; set; }
         = new List<Kurum>();
+
+    // Kurumun bolumleri
+    public ICollection<Bolum> Bolumler { get; set; }
+        = new List<Bolum>();
+
+    // Kurumun calisma saatleri
+    public ICollection<KurumCalismaSaati> CalismaSaatleri
+        { get; set; } = new List<KurumCalismaSaati>();
+    
+    //Calisanlarin Bİlgisi tek sınıfta
+    public ICollection<Calisan> Calisanlar { get; set; }
+    = new List<Calisan>();
 }
