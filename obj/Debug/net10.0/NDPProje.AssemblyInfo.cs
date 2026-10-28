@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("NDPProje")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+1bb35662ff8d4571c66315f9b99dce56b7c5301a")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+db0f210b8be03b28160dc8148e719d4ed0e317c5")]
 [assembly: System.Reflection.AssemblyProductAttribute("NDPProje")]
 [assembly: System.Reflection.AssemblyTitleAttribute("NDPProje")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

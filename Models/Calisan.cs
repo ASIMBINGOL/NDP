@@ -18,4 +18,8 @@ public abstract class Calisan
     public Kurum? Kurum { get; set; }
 
     public Bolum? Bolum { get; set; }
+
+    //kurum, bölüm ve çalışan ile sağlık hizmetlerine erişecek
+    public ICollection<CalisanHizmeti> SunduguHizmetler
+    { get; set; } = new List<CalisanHizmeti>();
 }

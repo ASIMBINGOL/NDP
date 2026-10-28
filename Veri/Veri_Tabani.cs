@@ -6,6 +6,7 @@ namespace NDPProje.Veri;
 
 public class VeritabaniBaglami : DbContext
 {
+
     public DbSet<Kurum> Kurumlar => Set<Kurum>();
     public DbSet<Bolum> Bolumler => Set<Bolum>();
     public DbSet<KurumCalismaSaati> KurumCalismaSaatleri
@@ -17,6 +18,18 @@ public class VeritabaniBaglami : DbContext
     public DbSet<Doktor> Doktorlar => Set<Doktor>();
     public DbSet<SaglikPersoneli> SaglikPersonelleri
         => Set<SaglikPersoneli>();
+
+    public DbSet<SaglikHizmeti> SaglikHizmetleri
+    => Set<SaglikHizmeti>();
+
+    public DbSet<CalisanHizmeti> CalisanHizmetleri
+    => Set<CalisanHizmeti>();  
+
+    public DbSet<UygunlukAraligi> UygunlukAraliklari//çalışma saatleri
+    => Set<UygunlukAraligi>();
+
+    public DbSet<Randevu> Randevular//randevu
+    => Set<Randevu>();  
 
     protected override void OnConfiguring(
         DbContextOptionsBuilder optionsBuilder)
@@ -55,6 +68,95 @@ public class VeritabaniBaglami : DbContext
             tablo.HasOne(k => k.UstKurum)
                 .WithMany(k => k.AltKurumlar)
                 .HasForeignKey(k => k.UstKurumId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+        
+        // Saglik hizmetleri
+        modelBuilder.Entity<SaglikHizmeti>(tablo =>
+        {
+            tablo.ToTable("SaglikHizmetleri", ayarlar =>
+            {
+                ayarlar.HasCheckConstraint(
+                    "CK_SaglikHizmetleri_Sure",
+                    "\"SureDakika\" > 0");
+
+                ayarlar.HasCheckConstraint(
+                    "CK_SaglikHizmetleri_Ucret",
+                    "\"UcretKurus\" >= 0");
+            });
+
+            tablo.HasKey(h => h.Id);
+
+            tablo.Property(h => h.Ad)
+                .IsRequired()
+                .HasMaxLength(150);
+
+            tablo.Property(h => h.Aciklama)
+                .HasMaxLength(500);
+
+            tablo.HasAlternateKey(h => new
+            {
+                h.Id,
+                h.KurumId
+            });
+
+            tablo.HasOne(h => h.Kurum)
+                .WithMany(k => k.SaglikHizmetleri)
+                .HasForeignKey(h => h.KurumId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            tablo.HasOne(h => h.Bolum)
+                .WithMany(b => b.SaglikHizmetleri)
+                .HasForeignKey(h => new
+                {
+                    h.BolumId,
+                    h.KurumId
+                })
+                .HasPrincipalKey(b => new
+                {
+                    b.Id,
+                    b.KurumId
+                })
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // Calisan ve saglik hizmeti arasindaki iliski
+        modelBuilder.Entity<CalisanHizmeti>(tablo =>
+        {
+            tablo.ToTable("CalisanHizmetleri");
+
+            tablo.HasKey(x => new
+            {
+                x.CalisanId,
+                x.SaglikHizmetiId
+            });
+
+            tablo.HasOne(x => x.Calisan)
+                .WithMany(c => c.SunduguHizmetler)
+                .HasForeignKey(x => new
+                {
+                    x.CalisanId,
+                    x.KurumId
+                })
+                .HasPrincipalKey(c => new
+                {
+                    c.Id,
+                    c.KurumId
+                })
+                .OnDelete(DeleteBehavior.Restrict);
+
+            tablo.HasOne(x => x.SaglikHizmeti)
+                .WithMany(h => h.CalisanAtamalari)
+                .HasForeignKey(x => new
+                {
+                    x.SaglikHizmetiId,
+                    x.KurumId
+                })
+                .HasPrincipalKey(h => new
+                {
+                    h.Id,
+                    h.KurumId
+                })
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
@@ -174,7 +276,9 @@ public class VeritabaniBaglami : DbContext
 
         // Calisanlar ve kalitim
         modelBuilder.Entity<Calisan>(tablo =>
-        {
+        {   
+            tablo.HasAlternateKey(c => new { c.Id, c.KurumId });
+            
             tablo.ToTable("Calisanlar", ayarlar =>
             {
                 ayarlar.HasCheckConstraint(
@@ -236,5 +340,153 @@ public class VeritabaniBaglami : DbContext
                 .IsRequired()
                 .HasMaxLength(100);
         });
+
+        
+        // Uygunluk araliklari
+        modelBuilder.Entity<UygunlukAraligi>(tablo =>
+        {
+            tablo.ToTable("UygunlukAraliklari", ayarlar =>
+            {
+                ayarlar.HasCheckConstraint(
+                    "CK_UygunlukAraliklari_Tarih",
+                    "\"BitisTarihiSaati\" > " +
+                    "\"BaslangicTarihiSaati\"");
+            });
+
+            tablo.HasKey(a => a.Id);
+
+            tablo.HasAlternateKey(a => new
+            {
+                a.Id,
+                a.CalisanId,
+                a.KurumId
+            });
+
+            tablo.HasIndex(a => new
+            {
+                a.CalisanId,
+                a.BaslangicTarihiSaati,
+                a.BitisTarihiSaati
+            });
+
+            tablo.HasOne(a => a.Calisan)
+                .WithMany()
+                .HasForeignKey(a => new
+                {
+                    a.CalisanId,
+                    a.KurumId
+                })
+                .HasPrincipalKey(c => new
+                {
+                    c.Id,
+                    c.KurumId
+                })
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // Randevular
+        modelBuilder.Entity<Randevu>(tablo =>
+        {
+            tablo.ToTable("Randevular", ayarlar =>
+            {
+                ayarlar.HasCheckConstraint(
+                    "CK_Randevular_Tarih",
+                    "\"BitisTarihiSaati\" > " +
+                    "\"BaslangicTarihiSaati\"");
+
+                ayarlar.HasCheckConstraint(
+                    "CK_Randevular_Sure",
+                    "\"SureDakikaKayit\" > 0");
+
+                ayarlar.HasCheckConstraint(
+                    "CK_Randevular_Ucret",
+                    "\"UcretKurusKayit\" >= 0");
+
+                ayarlar.HasCheckConstraint(
+                    "CK_Randevular_Durum",
+                    "\"Durum\" IN " +
+                    "('Beklemede', 'Onaylandi', " +
+                    "'IptalEdildi', 'Tamamlandi')");
+            });
+
+            tablo.HasKey(r => r.Id);
+
+            // Hastanin randevulari
+            tablo.HasOne(r => r.Hasta)
+                .WithMany()
+                .HasForeignKey(r => r.HastaId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Randevu calisani
+            tablo.HasOne(r => r.Calisan)
+                .WithMany()
+                .HasForeignKey(r => new
+                {
+                    r.CalisanId,
+                    r.KurumId
+                })
+                .HasPrincipalKey(c => new
+                {
+                    c.Id,
+                    c.KurumId
+                })
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Randevu hizmeti
+            tablo.HasOne(r => r.SaglikHizmeti)
+                .WithMany()
+                .HasForeignKey(r => new
+                {
+                    r.SaglikHizmetiId,
+                    r.KurumId
+                })
+                .HasPrincipalKey(h => new
+                {
+                    h.Id,
+                    h.KurumId
+                })
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Calisanin bu hizmeti sunabildigini dogrula
+            tablo.HasOne<CalisanHizmeti>()
+                .WithMany()
+                .HasForeignKey(r => new
+                {
+                    r.CalisanId,
+                    r.SaglikHizmetiId
+                })
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Randevunun uygunluk araligini bagla
+            tablo.HasOne(r => r.UygunlukAraligi)
+                .WithMany(a => a.Randevular)
+                .HasForeignKey(r => new
+                {
+                    r.UygunlukAraligiId,
+                    r.CalisanId,
+                    r.KurumId
+                })
+                .HasPrincipalKey(a => new
+                {
+                    a.Id,
+                    a.CalisanId,
+                    a.KurumId
+                })
+                .OnDelete(DeleteBehavior.Restrict);
+
+            tablo.HasIndex(r => new
+            {
+                r.CalisanId,
+                r.BaslangicTarihiSaati,
+                r.BitisTarihiSaati
+            });
+
+            tablo.HasIndex(r => new
+            {
+                r.HastaId,
+                r.BaslangicTarihiSaati
+            });
+        });
+
     }
 }

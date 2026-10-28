@@ -85,6 +85,26 @@ namespace NDPProje.Migrations
                     b.UseTphMappingStrategy();
                 });
 
+            modelBuilder.Entity("NDPProje.Modeller.CalisanHizmeti", b =>
+                {
+                    b.Property<int>("CalisanId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("SaglikHizmetiId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("KurumId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("CalisanId", "SaglikHizmetiId");
+
+                    b.HasIndex("CalisanId", "KurumId");
+
+                    b.HasIndex("SaglikHizmetiId", "KurumId");
+
+                    b.ToTable("CalisanHizmetleri", (string)null);
+                });
+
             modelBuilder.Entity("NDPProje.Modeller.Hasta", b =>
                 {
                     b.Property<int>("Id")
@@ -222,6 +242,143 @@ namespace NDPProje.Migrations
                         });
                 });
 
+            modelBuilder.Entity("NDPProje.Modeller.Randevu", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("BaslangicTarihiSaati")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("BitisTarihiSaati")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("CalisanId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Durum")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("HastaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("KurumId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("SaglikHizmetiId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("SureDakikaKayit")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("UcretKurusKayit")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("UygunlukAraligiId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CalisanId", "KurumId");
+
+                    b.HasIndex("CalisanId", "SaglikHizmetiId");
+
+                    b.HasIndex("HastaId", "BaslangicTarihiSaati");
+
+                    b.HasIndex("SaglikHizmetiId", "KurumId");
+
+                    b.HasIndex("CalisanId", "BaslangicTarihiSaati", "BitisTarihiSaati");
+
+                    b.HasIndex("UygunlukAraligiId", "CalisanId", "KurumId");
+
+                    b.ToTable("Randevular", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Randevular_Durum", "\"Durum\" IN ('Beklemede', 'Onaylandi', 'IptalEdildi', 'Tamamlandi')");
+
+                            t.HasCheckConstraint("CK_Randevular_Sure", "\"SureDakikaKayit\" > 0");
+
+                            t.HasCheckConstraint("CK_Randevular_Tarih", "\"BitisTarihiSaati\" > \"BaslangicTarihiSaati\"");
+
+                            t.HasCheckConstraint("CK_Randevular_Ucret", "\"UcretKurusKayit\" >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("NDPProje.Modeller.SaglikHizmeti", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Aciklama")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Ad")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("AktifMi")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("BolumId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("KurumId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("SureDakika")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("UcretKurus")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("KurumId");
+
+                    b.HasIndex("BolumId", "KurumId");
+
+                    b.ToTable("SaglikHizmetleri", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_SaglikHizmetleri_Sure", "\"SureDakika\" > 0");
+
+                            t.HasCheckConstraint("CK_SaglikHizmetleri_Ucret", "\"UcretKurus\" >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("NDPProje.Modeller.UygunlukAraligi", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("BaslangicTarihiSaati")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("BitisTarihiSaati")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("CalisanId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("KurumId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CalisanId", "KurumId");
+
+                    b.HasIndex("CalisanId", "BaslangicTarihiSaati", "BitisTarihiSaati");
+
+                    b.ToTable("UygunlukAraliklari", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_UygunlukAraliklari_Tarih", "\"BitisTarihiSaati\" > \"BaslangicTarihiSaati\"");
+                        });
+                });
+
             modelBuilder.Entity("NDPProje.Modeller.Doktor", b =>
                 {
                     b.HasBaseType("NDPProje.Modeller.Calisan");
@@ -294,6 +451,27 @@ namespace NDPProje.Migrations
                     b.Navigation("Kurum");
                 });
 
+            modelBuilder.Entity("NDPProje.Modeller.CalisanHizmeti", b =>
+                {
+                    b.HasOne("NDPProje.Modeller.Calisan", "Calisan")
+                        .WithMany("SunduguHizmetler")
+                        .HasForeignKey("CalisanId", "KurumId")
+                        .HasPrincipalKey("Id", "KurumId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("NDPProje.Modeller.SaglikHizmeti", "SaglikHizmeti")
+                        .WithMany("CalisanAtamalari")
+                        .HasForeignKey("SaglikHizmetiId", "KurumId")
+                        .HasPrincipalKey("Id", "KurumId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Calisan");
+
+                    b.Navigation("SaglikHizmeti");
+                });
+
             modelBuilder.Entity("NDPProje.Modeller.Hasta", b =>
                 {
                     b.HasOne("NDPProje.Modeller.Kullanici", "Kullanici")
@@ -326,9 +504,91 @@ namespace NDPProje.Migrations
                     b.Navigation("Kurum");
                 });
 
+            modelBuilder.Entity("NDPProje.Modeller.Randevu", b =>
+                {
+                    b.HasOne("NDPProje.Modeller.Hasta", "Hasta")
+                        .WithMany()
+                        .HasForeignKey("HastaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("NDPProje.Modeller.Calisan", "Calisan")
+                        .WithMany()
+                        .HasForeignKey("CalisanId", "KurumId")
+                        .HasPrincipalKey("Id", "KurumId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("NDPProje.Modeller.CalisanHizmeti", null)
+                        .WithMany()
+                        .HasForeignKey("CalisanId", "SaglikHizmetiId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("NDPProje.Modeller.SaglikHizmeti", "SaglikHizmeti")
+                        .WithMany()
+                        .HasForeignKey("SaglikHizmetiId", "KurumId")
+                        .HasPrincipalKey("Id", "KurumId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("NDPProje.Modeller.UygunlukAraligi", "UygunlukAraligi")
+                        .WithMany("Randevular")
+                        .HasForeignKey("UygunlukAraligiId", "CalisanId", "KurumId")
+                        .HasPrincipalKey("Id", "CalisanId", "KurumId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Calisan");
+
+                    b.Navigation("Hasta");
+
+                    b.Navigation("SaglikHizmeti");
+
+                    b.Navigation("UygunlukAraligi");
+                });
+
+            modelBuilder.Entity("NDPProje.Modeller.SaglikHizmeti", b =>
+                {
+                    b.HasOne("NDPProje.Modeller.Kurum", "Kurum")
+                        .WithMany("SaglikHizmetleri")
+                        .HasForeignKey("KurumId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("NDPProje.Modeller.Bolum", "Bolum")
+                        .WithMany("SaglikHizmetleri")
+                        .HasForeignKey("BolumId", "KurumId")
+                        .HasPrincipalKey("Id", "KurumId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Bolum");
+
+                    b.Navigation("Kurum");
+                });
+
+            modelBuilder.Entity("NDPProje.Modeller.UygunlukAraligi", b =>
+                {
+                    b.HasOne("NDPProje.Modeller.Calisan", "Calisan")
+                        .WithMany()
+                        .HasForeignKey("CalisanId", "KurumId")
+                        .HasPrincipalKey("Id", "KurumId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Calisan");
+                });
+
             modelBuilder.Entity("NDPProje.Modeller.Bolum", b =>
                 {
                     b.Navigation("Calisanlar");
+
+                    b.Navigation("SaglikHizmetleri");
+                });
+
+            modelBuilder.Entity("NDPProje.Modeller.Calisan", b =>
+                {
+                    b.Navigation("SunduguHizmetler");
                 });
 
             modelBuilder.Entity("NDPProje.Modeller.Kullanici", b =>
@@ -347,6 +607,18 @@ namespace NDPProje.Migrations
                     b.Navigation("Calisanlar");
 
                     b.Navigation("CalismaSaatleri");
+
+                    b.Navigation("SaglikHizmetleri");
+                });
+
+            modelBuilder.Entity("NDPProje.Modeller.SaglikHizmeti", b =>
+                {
+                    b.Navigation("CalisanAtamalari");
+                });
+
+            modelBuilder.Entity("NDPProje.Modeller.UygunlukAraligi", b =>
+                {
+                    b.Navigation("Randevular");
                 });
 #pragma warning restore 612, 618
         }

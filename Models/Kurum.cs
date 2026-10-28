@@ -34,4 +34,8 @@ public class Kurum
     //Calisanlarin Bİlgisi tek sınıfta
     public ICollection<Calisan> Calisanlar { get; set; }
     = new List<Calisan>();
+
+    //hastalarin ödeyecekleri ücretleri belirlemek için
+    public ICollection<SaglikHizmeti> SaglikHizmetleri
+    { get; set; } = new List<SaglikHizmeti>();
 }
