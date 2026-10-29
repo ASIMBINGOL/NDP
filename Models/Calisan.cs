@@ -1,7 +1,7 @@
 
 namespace NDPProje.Modeller;
 
-public abstract class Calisan
+public abstract class Calisan : ICalisan
 {
     public int Id { get; set; }
 
@@ -22,4 +22,6 @@ public abstract class Calisan
     //kurum, bölüm ve çalışan ile sağlık hizmetlerine erişecek
     public ICollection<CalisanHizmeti> SunduguHizmetler
     { get; set; } = new List<CalisanHizmeti>();
+
+    public abstract string GorevBilgisi();//bilgileri çeekcek fonksiyon
 }
