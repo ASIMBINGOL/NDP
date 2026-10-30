@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="NDPProje.csproj" />
+  <Project Path="NDP_Proje_Uygulama/NDP_Proje_Uygulama.csproj" />
+</Solution>
