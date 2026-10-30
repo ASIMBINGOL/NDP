@@ -1,0 +1,14 @@
+# Visual Studio gecici dosyalari
+.vs/
+
+# Derleme dosyalari
+bin/
+obj/
+
+# SQLite gecici dosyalari
+*.db-shm
+*.db-wal
+
+# Visual Studio kullanici ayarlari
+*.user
+*.suo
