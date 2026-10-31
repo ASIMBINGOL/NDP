@@ -6,6 +6,18 @@ namespace NDPProje.Veri;
 
 public class VeritabaniBaglami : DbContext
 {
+    // Konsol uygulamasi ve EF Core gecisleri icin.
+    public VeritabaniBaglami()
+    {
+    }
+
+    // Windows Forms uygulamasindan baglanti seceneklerini almak icin.
+    public VeritabaniBaglami(
+        DbContextOptions<VeritabaniBaglami> secenekler)
+        : base(secenekler)
+    {
+    }
+
 
     public DbSet<Kurum> Kurumlar => Set<Kurum>();
     public DbSet<Bolum> Bolumler => Set<Bolum>();
@@ -23,13 +35,13 @@ public class VeritabaniBaglami : DbContext
     => Set<SaglikHizmeti>();
 
     public DbSet<CalisanHizmeti> CalisanHizmetleri
-    => Set<CalisanHizmeti>();  
+    => Set<CalisanHizmeti>();
 
     public DbSet<UygunlukAraligi> UygunlukAraliklari//çalışma saatleri
     => Set<UygunlukAraligi>();
 
     public DbSet<Randevu> Randevular//randevu
-    => Set<Randevu>();  
+    => Set<Randevu>();
 
     protected override void OnConfiguring(
         DbContextOptionsBuilder optionsBuilder)
@@ -70,7 +82,7 @@ public class VeritabaniBaglami : DbContext
                 .HasForeignKey(k => k.UstKurumId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
-        
+
         // Saglik hizmetleri
         modelBuilder.Entity<SaglikHizmeti>(tablo =>
         {
@@ -276,9 +288,9 @@ public class VeritabaniBaglami : DbContext
 
         // Calisanlar ve kalitim
         modelBuilder.Entity<Calisan>(tablo =>
-        {   
+        {
             tablo.HasAlternateKey(c => new { c.Id, c.KurumId });
-            
+
             tablo.ToTable("Calisanlar", ayarlar =>
             {
                 ayarlar.HasCheckConstraint(
@@ -341,7 +353,7 @@ public class VeritabaniBaglami : DbContext
                 .HasMaxLength(100);
         });
 
-        
+
         // Uygunluk araliklari
         modelBuilder.Entity<UygunlukAraligi>(tablo =>
         {

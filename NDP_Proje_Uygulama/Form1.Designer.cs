@@ -101,6 +101,7 @@
             btnGiris.TabIndex = 6;
             btnGiris.Text = "Giriş Yap";
             btnGiris.UseVisualStyleBackColor = true;
+            btnGiris.Click += btnGiris_Click;
             // 
             // btnKayit
             // 
@@ -110,6 +111,7 @@
             btnKayit.TabIndex = 7;
             btnKayit.Text = "Kayıt Ol";
             btnKayit.UseVisualStyleBackColor = true;
+            btnKayit.Click += btnKayit_Click;
             // 
             // Form1
             // 
