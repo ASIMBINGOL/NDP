@@ -30,6 +30,7 @@ partial class HastaPaneli
     private Label lblRandevularBaslik = null!;
     private Label lblRandevuBilgi = null!;
     private Button btnYenile = null!;
+    private Button btnRandevuIptal = null!;
     private DataGridView dgvRandevular = null!;
 
     private Label lblAltBilgi = null!;
@@ -68,6 +69,7 @@ partial class HastaPaneli
         lblRandevularBaslik = new Label();
         lblRandevuBilgi = new Label();
         btnYenile = new Button();
+        btnRandevuIptal = new Button();
         dgvRandevular = new DataGridView();
         lblAltBilgi = new Label();
         btnCikis = new Button();
@@ -251,6 +253,7 @@ partial class HastaPaneli
         pnlRandevular.Controls.Add(lblRandevularBaslik);
         pnlRandevular.Controls.Add(lblRandevuBilgi);
         pnlRandevular.Controls.Add(btnYenile);
+        pnlRandevular.Controls.Add(btnRandevuIptal);
         pnlRandevular.Controls.Add(dgvRandevular);
         pnlRandevular.Location = new Point(28, 429);
         pnlRandevular.Name = "pnlRandevular";
@@ -272,7 +275,7 @@ partial class HastaPaneli
         lblRandevuBilgi.ForeColor = Color.FromArgb(103, 115, 135);
         lblRandevuBilgi.Location = new Point(26, 47);
         lblRandevuBilgi.Name = "lblRandevuBilgi";
-        lblRandevuBilgi.Size = new Size(760, 26);
+        lblRandevuBilgi.Size = new Size(670, 26);
         lblRandevuBilgi.TabIndex = 1;
         lblRandevuBilgi.Text = "Randevularınız yükleniyor...";
 
@@ -289,6 +292,23 @@ partial class HastaPaneli
         btnYenile.TabIndex = 2;
         btnYenile.Text = "Yenile";
         btnYenile.UseVisualStyleBackColor = false;
+
+        // HASTA RANDEVU IPTAL BUTONU
+        btnRandevuIptal.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+        btnRandevuIptal.BackColor = Color.FromArgb(253, 232, 232);
+        btnRandevuIptal.Cursor = Cursors.Hand;
+        btnRandevuIptal.FlatAppearance.BorderSize = 0;
+        btnRandevuIptal.FlatAppearance.MouseOverBackColor = Color.FromArgb(251, 210, 210);
+        btnRandevuIptal.FlatStyle = FlatStyle.Flat;
+        btnRandevuIptal.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+        btnRandevuIptal.ForeColor = Color.FromArgb(157, 34, 34);
+        btnRandevuIptal.Location = new Point(718, 17);
+        btnRandevuIptal.Name = "btnRandevuIptal";
+        btnRandevuIptal.Size = new Size(180, 36);
+        btnRandevuIptal.TabIndex = 3;
+        btnRandevuIptal.Text = "Randevuyu İptal Et";
+        btnRandevuIptal.UseVisualStyleBackColor = false;
+        btnRandevuIptal.Enabled = false;
 
         // TABLO GÖRÜNÜMÜ
         dgvRandevular.AllowUserToAddRows = false;

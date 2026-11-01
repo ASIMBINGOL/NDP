@@ -132,6 +132,7 @@
             Name = "Form1";
             StartPosition = FormStartPosition.CenterParent;
             Text = "Hastane / Klinik Randevu Sistemi";
+            Load += Form1_Load;
             ResumeLayout(false);
             PerformLayout();
         }

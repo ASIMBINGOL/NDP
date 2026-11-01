@@ -106,9 +106,28 @@ namespace NDP_Proje_Uygulama
                         break;
 
 
+
                     case "KurumYoneticisi":
-                        // AdminPaneli acilacak.
+
+                        using (var adminPaneli = new AdminPaneli(
+                            sonuc.KullaniciId,
+                            sonuc.AdSoyad))
+                        {
+                            Hide();
+
+                            try
+                            {
+                                adminPaneli.ShowDialog(this);
+                            }
+                            finally
+                            {
+                                Show();
+                                txtSifre.Clear();
+                            }
+                        }
+
                         break;
+
 
                     case "SaglikPersoneli":
                         // Personel yetkileri ayrica belirlenecek.
@@ -144,5 +163,9 @@ namespace NDP_Proje_Uygulama
             }
         }
 
+        private void Form1_Load(object sender, EventArgs e)
+        {
+
+        }
     }
 }

@@ -49,11 +49,24 @@ public partial class DoktorPaneli : Form
         public string Ucret { get; init; } = "";
         public string Durum { get; init; } = "";
 
+        // Veritabanindaki gercek durum is kurallari icin korunur.
+        [Browsable(false)]
+        public string KayitDurumu { get; init; } = "";
+
         [Browsable(false)]
         public DateTime BaslangicTarihiSaati { get; init; }
 
         [Browsable(false)]
         public DateTime BitisTarihiSaati { get; init; }
+    }
+
+    // Gecmis bir randevu Beklemede ise, sadece ekranda suresi gecti yaz.
+    // Veritabaninda yeni bir durum degeri olusturmuyoruz.
+    private static string GorunenDurum(string kayitDurumu, DateTime baslangic)
+    {
+        return kayitDurumu == "Beklemede" && baslangic <= DateTime.Now
+            ? "Süresi Geçti"
+            : kayitDurumu;
     }
 
     private void OlaylariBagla()
@@ -70,7 +83,7 @@ public partial class DoktorPaneli : Form
         cmbDurumFiltresi.DropDownStyle = ComboBoxStyle.DropDownList;
         cmbDurumFiltresi.Items.AddRange(new object[]
         {
-            "Tümü", "Beklemede", "Onaylandi", "IptalEdildi", "Tamamlandi"
+            "Tümü", "Beklemede", "Süresi Geçti", "Onaylandi", "IptalEdildi", "Tamamlandi"
         });
         cmbDurumFiltresi.SelectedIndex = 0;
 
@@ -192,7 +205,8 @@ public partial class DoktorPaneli : Form
                 Saat = r.BaslangicTarihiSaati.ToString("HH:mm"),
                 BitisSaati = r.BitisTarihiSaati.ToString("HH:mm"),
                 Ucret = (r.UcretKurusKayit / 100m).ToString("N2") + " TL",
-                Durum = r.Durum,
+                KayitDurumu = r.Durum,
+                Durum = GorunenDurum(r.Durum, r.BaslangicTarihiSaati),
                 BaslangicTarihiSaati = r.BaslangicTarihiSaati,
                 BitisTarihiSaati = r.BitisTarihiSaati
             }).ToList();
@@ -250,14 +264,14 @@ public partial class DoktorPaneli : Form
         var randevu = SeciliRandevu();
         var simdi = DateTime.Now;
         btnOnayla.Enabled = !_islemDevamEdiyor && randevu != null &&
-                           randevu.Durum == "Beklemede" &&
+                           randevu.KayitDurumu == "Beklemede" &&
                            randevu.BaslangicTarihiSaati > simdi;
         btnIptal.Enabled = !_islemDevamEdiyor && randevu != null &&
-                           (randevu.Durum == "Beklemede" ||
-                            randevu.Durum == "Onaylandi") &&
+                           (randevu.KayitDurumu == "Beklemede" ||
+                            randevu.KayitDurumu == "Onaylandi") &&
                            randevu.BaslangicTarihiSaati > simdi;
         btnTamamla.Enabled = !_islemDevamEdiyor && randevu != null &&
-                            randevu.Durum == "Onaylandi" &&
+                            randevu.KayitDurumu == "Onaylandi" &&
                             randevu.BitisTarihiSaati <= simdi;
     }
 
@@ -290,10 +304,10 @@ public partial class DoktorPaneli : Form
         var simdi = DateTime.Now;
         bool izinli = islem switch
         {
-            "Onayla" => secili.Durum == "Beklemede" && secili.BaslangicTarihiSaati > simdi,
-            "Iptal" => (secili.Durum == "Beklemede" || secili.Durum == "Onaylandi") &&
+            "Onayla" => secili.KayitDurumu == "Beklemede" && secili.BaslangicTarihiSaati > simdi,
+            "Iptal" => (secili.KayitDurumu == "Beklemede" || secili.KayitDurumu == "Onaylandi") &&
                        secili.BaslangicTarihiSaati > simdi,
-            "Tamamla" => secili.Durum == "Onaylandi" && secili.BitisTarihiSaati <= simdi,
+            "Tamamla" => secili.KayitDurumu == "Onaylandi" && secili.BitisTarihiSaati <= simdi,
             _ => false
         };
         if (!izinli)
