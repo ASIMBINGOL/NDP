@@ -1,4 +1,4 @@
-#nullable enable
+﻿#nullable enable
 using System.ComponentModel;
 using Microsoft.EntityFrameworkCore;
 
@@ -18,10 +18,10 @@ public partial class AdminPaneli : Form
         Load += AdminPaneli_Load;
         btnKurumlar.Click += async (_, _) => await KurumEkraniniAcAsync();
         btnBolumler.Click += async (_, _) => await BolumEkraniniAcAsync();
-        btnCalisanlar.Click += (_, _) => HenuzHazirDegil("Doktor / Personel Yönetimi");
-        btnHizmetler.Click += (_, _) => HenuzHazirDegil("Sağlık Hizmeti Yönetimi");
-        btnCalisma.Click += (_, _) => HenuzHazirDegil("Çalışma Saatleri Yönetimi");
-        btnUygunluk.Click += (_, _) => HenuzHazirDegil("Doktor Uygunluk Yönetimi");
+        btnCalisanlar.Click += async (_, _) => await CalisanEkraniniAcAsync();
+        btnHizmetler.Click += async (_, _) => await HizmetEkraniniAcAsync();
+        btnCalisma.Click += async (_, _) => await CalismaEkraniniAcAsync();
+        btnUygunluk.Click += async (_, _) => await UygunlukEkraniniAcAsync();
         btnYenile.Click += async (_, _) => await OzetiYukleAsync();
         btnCikis.Click += (_, _) => Close();
     }
@@ -100,6 +100,38 @@ public partial class AdminPaneli : Form
         await OzetiYukleAsync();
     }
 
+    private async Task CalisanEkraniniAcAsync()
+    {
+        if (!await GuvenliYetkiKontroluAsync()) return;
+        using var form = new CalisanYonetimFormu(_kullaniciId);
+        form.ShowDialog(this);
+        await OzetiYukleAsync();
+    }
+
+    private async Task HizmetEkraniniAcAsync()
+    {
+        if (!await GuvenliYetkiKontroluAsync()) return;
+        using var form = new SaglikHizmetiYonetimFormu(_kullaniciId);
+        form.ShowDialog(this);
+        await OzetiYukleAsync();
+    }
+
+    private async Task CalismaEkraniniAcAsync()
+    {
+        if (!await GuvenliYetkiKontroluAsync()) return;
+        using var form = new CalismaSaatiYonetimFormu(_kullaniciId);
+        form.ShowDialog(this);
+        await OzetiYukleAsync();
+    }
+
+    private async Task UygunlukEkraniniAcAsync()
+    {
+        if (!await GuvenliYetkiKontroluAsync()) return;
+        using var form = new UygunlukYonetimFormu(_kullaniciId);
+        form.ShowDialog(this);
+        await OzetiYukleAsync();
+    }
+
     private async Task<bool> GuvenliYetkiKontroluAsync()
     {
         try
@@ -119,7 +151,7 @@ public partial class AdminPaneli : Form
     private static void HenuzHazirDegil(string baslik)
     {
         MessageBox.Show($"{baslik} modülünü sonraki aşamada ekleyeceğiz.\n" +
-                        "Şimdilik kurum ve bölüm yönetimi kullanılabilir.",
+                        "Bu bölüm henüz hazırlanmadı.",
             "Modül Geliştirme Aşamasında", MessageBoxButtons.OK, MessageBoxIcon.Information);
     }
 }
