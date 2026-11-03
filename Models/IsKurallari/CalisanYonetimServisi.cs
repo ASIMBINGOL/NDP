@@ -184,31 +184,76 @@ public sealed class CalisanYonetimServisi : YetkiliYonetimServisi<CalisanBilgisi
         return mevcut.Id;
     }
 
+
     public async Task DurumDegistirAsync(int calisanId)
     {
         await YoneticiYetkisiniDogrulaAsync();
-        var calisan = await Baglam.Calisanlar.Include(c => c.Kullanici)
+
+        var calisan = await Baglam.Calisanlar
+            .Include(c => c.Kullanici)
             .FirstOrDefaultAsync(c => c.Id == calisanId)
-            ?? throw new InvalidOperationException("Çalışan bulunamadı.");
+            ?? throw new InvalidOperationException(
+                "Çalışan bulunamadı.");
+
         if (calisan.Kullanici is null)
-            throw new InvalidOperationException("Kullanıcı hesabı bulunamadı.");
-        if (!calisan.AktifMi && !await Baglam.Kurumlar.AnyAsync(k => k.Id == calisan.KurumId && k.AktifMi))
-            throw new InvalidOperationException("Pasif kurumdaki çalışan aktifleştirilemez.");
+            throw new InvalidOperationException(
+                "Kullanıcı hesabı bulunamadı.");
+
+        // Aktif çalışan pasifleştirilmek isteniyorsa
+        // gelecekteki randevuları koru.
+        if (calisan.AktifMi)
+        {
+            bool gelecekRandevuVarMi =
+                await Baglam.Randevular.AnyAsync(r =>
+                    r.CalisanId == calisanId &&
+                    r.BaslangicTarihiSaati > DateTime.Now &&
+                    (r.Durum == "Beklemede" ||
+                     r.Durum == "Onaylandi"));
+
+            if (gelecekRandevuVarMi)
+            {
+                throw new InvalidOperationException(
+                    "Bu çalışanın gelecekte bekleyen veya " +
+                    "onaylanmış randevuları bulunuyor. " +
+                    "Önce bu randevuları yönetin.");
+            }
+        }
+        else
+        {
+            bool kurumAktifMi =
+                await Baglam.Kurumlar.AnyAsync(k =>
+                    k.Id == calisan.KurumId && k.AktifMi);
+
+            if (!kurumAktifMi)
+            {
+                throw new InvalidOperationException(
+                    "Pasif kurumdaki çalışan aktifleştirilemez.");
+            }
+        }
 
         calisan.AktifMi = !calisan.AktifMi;
+
         if (calisan.AktifMi)
         {
             calisan.Kullanici.AktifMi = true;
         }
         else
         {
-            // Aynı hesaba bağlı başka aktif çalışan kaydı varsa hesabı kapatma.
-            bool digerAktif = await Baglam.Calisanlar.AnyAsync(c =>
-                c.KullaniciId == calisan.KullaniciId && c.Id != calisan.Id && c.AktifMi);
-            if (!digerAktif) calisan.Kullanici.AktifMi = false;
+            bool digerAktif = await Baglam.Calisanlar
+                .AnyAsync(c =>
+                    c.KullaniciId == calisan.KullaniciId &&
+                    c.Id != calisan.Id &&
+                    c.AktifMi);
+
+            if (!digerAktif)
+            {
+                calisan.Kullanici.AktifMi = false;
+            }
         }
+
         await Baglam.SaveChangesAsync();
     }
+
 
     public override async Task SilAsync(int id)
     {
