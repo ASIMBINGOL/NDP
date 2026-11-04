@@ -1,26 +1,28 @@
 
+using System;
+using System.Data;
 using System.Globalization;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using NDPProje.Modeller;
 using NDPProje.Veri;
 
 namespace NDPProje.IsKurallari;
 
-// Bu sinif randevu olusturma ve onaylama
-// islemlerindeki is kurallarini yonetir.
-
+// Randevu oluşturma, onaylama, iptal etme
+// ve tamamlama iş kurallarını yöneten sınıf.
 public class RandevuYonetimi
 {
     private readonly VeritabaniBaglami _baglam;
 
-    // Yapici metot
     public RandevuYonetimi(VeritabaniBaglami baglam)
     {
         _baglam = baglam;
     }
 
     // ============================================
-    // 1. RANDEVU OLUSTURMA
+    // 1. RANDEVU OLUŞTURMA
     // ============================================
 
     public async Task<int> RandevuOlusturAsync(
@@ -31,14 +33,23 @@ public class RandevuYonetimi
         DateTime baslangic,
         CancellationToken iptalBelirteci = default)
     {
-        // Randevu tarihi gelecekte olmali.
+        // Randevu gelecekte olmalı.
         if (baslangic <= DateTime.Now)
         {
             throw new InvalidOperationException(
-                "Randevu tarihi gelecekte olmalidir.");
+                "Randevu tarihi gelecekte olmalıdır.");
         }
 
-        // Hasta kaydini kontrol et.
+        // EŞZAMANLI RANDEVU GÜVENLİĞİ
+        // SQLite üzerinde yazma işlemlerinin
+        // birbirini beklemesini sağlayan transaction.
+        // Tüm kontroller ve kayıt aynı işlemde yapılır.
+        await using var islem =
+            await _baglam.Database.BeginTransactionAsync(
+                IsolationLevel.Serializable,
+                iptalBelirteci);
+
+        // Hasta kaydını kontrol et.
         bool hastaVarMi = await _baglam.Hastalar
             .AnyAsync(
                 h => h.Id == hastaId,
@@ -47,10 +58,10 @@ public class RandevuYonetimi
         if (!hastaVarMi)
         {
             throw new InvalidOperationException(
-                "Hasta kaydi bulunamadi.");
+                "Hasta kaydı bulunamadı.");
         }
 
-        // Calisanin uygunluk araligini bul.
+        // Çalışanın uygunluk aralığını bul.
         var uygunluk = await _baglam.UygunlukAraliklari
             .SingleOrDefaultAsync(
                 a => a.Id == uygunlukAraligiId
@@ -60,10 +71,10 @@ public class RandevuYonetimi
         if (uygunluk is null)
         {
             throw new InvalidOperationException(
-                "Calisanin uygunluk araligi bulunamadi.");
+                "Çalışanın uygunluk aralığı bulunamadı.");
         }
 
-        // Calisani ve kurumunu kontrol et.
+        // Çalışanı ve kurumunu kontrol et.
         var calisan = await _baglam.Calisanlar
             .SingleOrDefaultAsync(
                 c => c.Id == calisanId
@@ -73,10 +84,10 @@ public class RandevuYonetimi
         if (calisan is null || !calisan.AktifMi)
         {
             throw new InvalidOperationException(
-                "Calisan bulunamadi veya aktif degil.");
+                "Çalışan bulunamadı veya aktif değil.");
         }
 
-        // Kurumun aktif olup olmadigini kontrol et.
+        // Kurum aktif olmalı.
         bool kurumAktifMi = await _baglam.Kurumlar
             .AnyAsync(
                 k => k.Id == uygunluk.KurumId
@@ -86,10 +97,10 @@ public class RandevuYonetimi
         if (!kurumAktifMi)
         {
             throw new InvalidOperationException(
-                "Kurum bulunamadi veya aktif degil.");
+                "Kurum bulunamadı veya aktif değil.");
         }
 
-        // Saglik hizmetini kontrol et.
+        // Sağlık hizmetini kontrol et.
         var hizmet = await _baglam.SaglikHizmetleri
             .SingleOrDefaultAsync(
                 h => h.Id == saglikHizmetiId
@@ -100,10 +111,10 @@ public class RandevuYonetimi
         if (hizmet is null)
         {
             throw new InvalidOperationException(
-                "Saglik hizmeti bulunamadi veya aktif degil.");
+                "Sağlık hizmeti bulunamadı veya aktif değil.");
         }
 
-        // Calisanin bu hizmeti sunup sunmadigini kontrol et.
+        // Çalışan bu hizmeti sunabiliyor mu?
         bool hizmetSunuluyorMu =
             await _baglam.CalisanHizmetleri.AnyAsync(
                 x => x.CalisanId == calisanId
@@ -114,29 +125,36 @@ public class RandevuYonetimi
         if (!hizmetSunuluyorMu)
         {
             throw new InvalidOperationException(
-                "Bu calisan secilen hizmeti sunamiyor.");
+                "Bu çalışan seçilen hizmeti sunamıyor.");
         }
 
-        // Hizmetin suresine gore randevu bitisini hesapla.
+        // Hizmet süresi pozitif olmalı.
+        if (hizmet.SureDakika <= 0)
+        {
+            throw new InvalidOperationException(
+                "Sağlık hizmetinin süresi geçersiz.");
+        }
+
+        // Randevu bitişini hesapla.
         DateTime bitis = baslangic.AddMinutes(
             hizmet.SureDakika);
 
-        // Randevu calisanin uygunluk araliginda olmali.
+        // Uygunluk aralığı içinde kalmalı.
         if (baslangic < uygunluk.BaslangicTarihiSaati
             || bitis > uygunluk.BitisTarihiSaati)
         {
             throw new InvalidOperationException(
-                "Randevu calisanin uygunluk saatleri disinda.");
+                "Randevu çalışanın uygunluk saatleri dışında.");
         }
 
-        // Randevu ayni gun icinde tamamlanmali.
+        // Randevu aynı gün tamamlanmalı.
         if (baslangic.Date != bitis.Date)
         {
             throw new InvalidOperationException(
-                "Randevu iki farkli gune yayilamaz.");
+                "Randevu iki farklı güne yayılamaz.");
         }
 
-        // Kurumun o gun acik olup olmadigini kontrol et.
+        // Kurumun haftalık çalışma saatini bul.
         int gun = (int)baslangic.DayOfWeek;
 
         var mesai = await _baglam.KurumCalismaSaatleri
@@ -148,10 +166,10 @@ public class RandevuYonetimi
         if (mesai is null || mesai.KapaliMi)
         {
             throw new InvalidOperationException(
-                "Kurum bu gun icin acik degil.");
+                "Kurum bu gün için açık değil.");
         }
 
-        // Kurumun acilis saatini kontrol et.
+        // Açılış saatini kontrol et.
         bool acilisGecerli = TimeOnly.TryParseExact(
             mesai.AcilisSaati,
             "HH:mm",
@@ -159,7 +177,7 @@ public class RandevuYonetimi
             DateTimeStyles.None,
             out var acilis);
 
-        // Kurumun kapanis saatini kontrol et.
+        // Kapanış saatini kontrol et.
         bool kapanisGecerli = TimeOnly.TryParseExact(
             mesai.KapanisSaati,
             "HH:mm",
@@ -170,7 +188,7 @@ public class RandevuYonetimi
         if (!acilisGecerli || !kapanisGecerli)
         {
             throw new InvalidOperationException(
-                "Kurumun calisma saatleri hatali.");
+                "Kurumun çalışma saatleri hatalı.");
         }
 
         TimeOnly randevuBaslangici =
@@ -179,15 +197,16 @@ public class RandevuYonetimi
         TimeOnly randevuBitisi =
             TimeOnly.FromDateTime(bitis);
 
-        // Randevu kurumun calisma saatleri icinde olmali.
+        // Randevu mesai saatlerinde olmalı.
         if (randevuBaslangici < acilis
             || randevuBitisi > kapanis)
         {
             throw new InvalidOperationException(
-                "Randevu kurumun calisma saatleri disinda.");
+                "Randevu kurumun çalışma saatleri dışında.");
         }
 
-        // Calisanin cakisan randevularini kontrol et.
+        // ÇALIŞANIN ÇAKIŞAN RANDEVULARINI KONTROL ET
+        // Beklemede ve Onaylandi saatleri doludur.
         bool calisanCakisiyorMu =
             await _baglam.Randevular.AnyAsync(
                 r => r.CalisanId == calisanId
@@ -200,10 +219,10 @@ public class RandevuYonetimi
         if (calisanCakisiyorMu)
         {
             throw new InvalidOperationException(
-                "Calisanin bu saatte baska bir randevusu var.");
+                "Çalışanın bu saatte başka bir randevusu var.");
         }
 
-        // Hastanin cakisan randevularini kontrol et.
+        // HASTANIN ÇAKIŞAN RANDEVULARINI KONTROL ET
         bool hastaCakisiyorMu =
             await _baglam.Randevular.AnyAsync(
                 r => r.HastaId == hastaId
@@ -216,10 +235,18 @@ public class RandevuYonetimi
         if (hastaCakisiyorMu)
         {
             throw new InvalidOperationException(
-                "Hastanin bu saatte baska bir randevusu var.");
+                "Hastanın bu saatte başka bir randevusu var.");
         }
 
-        // Tum kontroller basariliysa randevuyu olustur.
+        // Transaction beklerken randevu zamanı
+        // geçmiş olabileceği için tekrar kontrol et.
+        if (baslangic <= DateTime.Now)
+        {
+            throw new InvalidOperationException(
+                "Randevu zamanı geçti. Lütfen yeni saat seçin.");
+        }
+
+        // Bütün kontroller başarılı.
         var yeniRandevu = new Randevu
         {
             HastaId = hastaId,
@@ -237,6 +264,10 @@ public class RandevuYonetimi
         _baglam.Randevular.Add(yeniRandevu);
 
         await _baglam.SaveChangesAsync(iptalBelirteci);
+
+        // EŞZAMANLI GÜVENLİK:
+        // Kontroller ve kayıt başarıyla tamamlandı.
+        await islem.CommitAsync(iptalBelirteci);
 
         return yeniRandevu.Id;
     }
@@ -257,17 +288,17 @@ public class RandevuYonetimi
         if (randevu is null)
         {
             throw new InvalidOperationException(
-                "Randevu bulunamadi.");
+                "Randevu bulunamadı.");
         }
 
-        // Gecmis tarihli randevular onaylanamaz.
+        // Geçmiş randevular onaylanamaz.
         if (randevu.BaslangicTarihiSaati <= DateTime.Now)
         {
             throw new InvalidOperationException(
-                "Gecmis tarihli randevular onaylanamaz.");
+                "Geçmiş tarihli randevular onaylanamaz.");
         }
 
-        // Onaylayan kullanici doktor ve aktif olmali.
+        // Kullanıcı aktif doktor olmalı.
         bool doktorYetkiliMi = await _baglam.Kullanicilar
             .AnyAsync(k =>
                 k.Id == onaylayanKullaniciId
@@ -277,10 +308,10 @@ public class RandevuYonetimi
         if (!doktorYetkiliMi)
         {
             throw new InvalidOperationException(
-                "Bu kullanicinin randevu onaylama yetkisi yok.");
+                "Bu kullanıcının randevu onaylama yetkisi yok.");
         }
 
-        // Doktor sadece kendisine ait randevuyu onaylayabilir.
+        // Doktor sadece kendi randevusunu onaylar.
         bool randevuDoktoraAitMi = await _baglam.Doktorlar
             .AnyAsync(d =>
                 d.Id == randevu.CalisanId
@@ -291,10 +322,10 @@ public class RandevuYonetimi
         if (!randevuDoktoraAitMi)
         {
             throw new InvalidOperationException(
-                "Bu randevu ilgili doktora ait degil.");
+                "Bu randevu ilgili doktora ait değil.");
         }
 
-        // Sadece bekleyen randevular onaylanabilir.
+        // Yalnızca Beklemede -> Onaylandi
         DateTime simdi = DateTime.Now;
 
         int degisenKayitSayisi = await _baglam.Randevular
@@ -310,20 +341,19 @@ public class RandevuYonetimi
         if (degisenKayitSayisi != 1)
         {
             throw new InvalidOperationException(
-                "Randevu zaten islenmis veya beklemede degil.");
+                "Randevu zaten işlenmiş veya beklemede değil.");
         }
     }
 
-    
     // ============================================
-    // 3. RANDEVU IPTAL ETME
+    // 3. RANDEVU İPTAL ETME
     // ============================================
 
     public async Task RandevuIptalEtAsync(
         int randevuId,
         int islemYapanKullaniciId)
     {
-        // Iptal edilecek randevuyu bul.
+        // İptal edilecek randevuyu bul.
         var randevu = await _baglam.Randevular
             .AsNoTracking()
             .FirstOrDefaultAsync(r => r.Id == randevuId);
@@ -331,10 +361,10 @@ public class RandevuYonetimi
         if (randevu is null)
         {
             throw new InvalidOperationException(
-                "Randevu bulunamadi.");
+                "Randevu bulunamadı.");
         }
 
-        // Islemi yapan kullaniciyi kontrol et.
+        // İşlemi yapan kullanıcı aktif olmalı.
         var kullanici = await _baglam.Kullanicilar
             .AsNoTracking()
             .FirstOrDefaultAsync(k =>
@@ -344,17 +374,17 @@ public class RandevuYonetimi
         if (kullanici is null)
         {
             throw new InvalidOperationException(
-                "Aktif kullanici bulunamadi.");
+                "Aktif kullanıcı bulunamadı.");
         }
 
-        // Hasta sadece kendi randevusunu iptal edebilir.
+        // Hasta sadece kendi randevusunu iptal eder.
         bool hastaYetkiliMi =
             kullanici.Rol == "Hasta" &&
             await _baglam.Hastalar.AnyAsync(h =>
                 h.Id == randevu.HastaId &&
                 h.KullaniciId == islemYapanKullaniciId);
 
-        // Doktor sadece kendisine ait randevuyu iptal edebilir.
+        // Doktor sadece kendi randevusunu iptal eder.
         bool doktorYetkiliMi =
             kullanici.Rol == "Doktor" &&
             await _baglam.Doktorlar.AnyAsync(d =>
@@ -369,17 +399,17 @@ public class RandevuYonetimi
                 "Bu randevuyu iptal etme yetkiniz yok.");
         }
 
-        // Baslamis veya gecmis randevular iptal edilemez.
+        // Başlamış veya geçmiş randevular
+        // iptal edilemez.
         DateTime simdi = DateTime.Now;
 
         if (randevu.BaslangicTarihiSaati <= simdi)
         {
             throw new InvalidOperationException(
-                "Baslamis veya gecmis randevular iptal edilemez.");
+                "Başlamış veya geçmiş randevular iptal edilemez.");
         }
 
-        // Yalnizca bekleyen veya onaylanan randevular
-        // iptal edilebilir.
+        // Beklemede veya Onaylandi -> IptalEdildi
         int degisenKayitSayisi = await _baglam.Randevular
             .Where(r =>
                 r.Id == randevuId &&
@@ -394,11 +424,10 @@ public class RandevuYonetimi
         if (degisenKayitSayisi != 1)
         {
             throw new InvalidOperationException(
-                "Randevu iptal edilemedi veya zaten islenmis.");
+                "Randevu iptal edilemedi veya zaten işlenmiş.");
         }
     }
 
-        
     // ============================================
     // 4. RANDEVU TAMAMLAMA
     // ============================================
@@ -415,10 +444,10 @@ public class RandevuYonetimi
         if (randevu is null)
         {
             throw new InvalidOperationException(
-                "Randevu bulunamadi.");
+                "Randevu bulunamadı.");
         }
 
-        // Sadece ilgili doktor randevuyu tamamlayabilir.
+        // Sadece randevunun doktoru tamamlayabilir.
         bool doktorYetkiliMi = await _baglam.Doktorlar
             .AnyAsync(d =>
                 d.Id == randevu.CalisanId &&
@@ -435,16 +464,16 @@ public class RandevuYonetimi
                 "Randevuyu tamamlama yetkiniz yok.");
         }
 
-        // Randevu bitis zamani gelmis olmali.
+        // Randevunun bitiş zamanı gelmiş olmalı.
         DateTime simdi = DateTime.Now;
 
         if (randevu.BitisTarihiSaati > simdi)
         {
             throw new InvalidOperationException(
-                "Randevu henuz sona ermedi.");
+                "Randevu henüz sona ermedi.");
         }
 
-        // Sadece onaylanmis randevular tamamlanabilir.
+        // Onaylandi -> Tamamlandi
         int degisenKayitSayisi = await _baglam.Randevular
             .Where(r =>
                 r.Id == randevuId &&
@@ -458,8 +487,7 @@ public class RandevuYonetimi
         if (degisenKayitSayisi != 1)
         {
             throw new InvalidOperationException(
-                "Randevu onaylanmamis veya zaten islenmis.");
+                "Randevu onaylanmamış veya zaten işlenmiş.");
         }
     }
-
 }
