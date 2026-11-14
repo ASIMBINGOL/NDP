@@ -43,15 +43,17 @@ public class VeritabaniBaglami : DbContext
     public DbSet<Randevu> Randevular//randevu
     => Set<Randevu>();
 
+
     protected override void OnConfiguring(
         DbContextOptionsBuilder optionsBuilder)
     {
         if (!optionsBuilder.IsConfigured)
         {
             optionsBuilder.UseSqlite(
-                "Data Source=NDP_Projesi.db");
+                VeritabaniDosyasi.BaglantiCumlesiOlustur());
         }
     }
+
 
     protected override void OnModelCreating(
         ModelBuilder modelBuilder)

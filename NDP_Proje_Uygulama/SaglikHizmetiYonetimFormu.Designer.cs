@@ -284,7 +284,7 @@ partial class SaglikHizmetiYonetimFormu
         btnSil.Cursor = Cursors.Hand;
         grpAtamalar.Text = "Doktor - Hizmet Eşleştirme";
         grpAtamalar.Location = new Point(765, 594);
-        grpAtamalar.Size = new Size(468, 188);
+        grpAtamalar.Size = new Size(468, 242);
         grpAtamalar.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
         lblDoktorSec.Text = "Atanabilir doktor";
         lblDoktorSec.Location = new Point(18, 23);
@@ -306,26 +306,62 @@ partial class SaglikHizmetiYonetimFormu
         btnDoktorAta.ForeColor = Color.White;
         btnDoktorAta.Cursor = Cursors.Hand;
         dgvAtamalar.Location = new Point(18, 83);
-        dgvAtamalar.Size = new Size(430, 57);
+        dgvAtamalar.Size = new Size(430, 110);
         dgvAtamalar.Font = new Font("Segoe UI", 8F);
         dgvAtamalar.ReadOnly = true;
         dgvAtamalar.AllowUserToAddRows = false;
         dgvAtamalar.AllowUserToDeleteRows = false;
-        dgvAtamalar.AutoGenerateColumns = true;
+        dgvAtamalar.AutoGenerateColumns = false;
         dgvAtamalar.MultiSelect = false;
         dgvAtamalar.RowHeadersVisible = false;
         dgvAtamalar.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
-        dgvAtamalar.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.DisplayedCells;
+        dgvAtamalar.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+        dgvAtamalar.ScrollBars = ScrollBars.Vertical;
+        dgvAtamalar.ColumnHeadersHeight = 29;
+        dgvAtamalar.RowTemplate.Height = 27;
+        dgvAtamalar.Columns.AddRange(
+            new DataGridViewTextBoxColumn
+            {
+                Name = "CalisanId",
+                DataPropertyName = "CalisanId",
+                HeaderText = "No",
+                FillWeight = 12F,
+                MinimumWidth = 36
+            },
+            new DataGridViewTextBoxColumn
+            {
+                Name = "DoktorAdi",
+                DataPropertyName = "DoktorAdi",
+                HeaderText = "Doktor",
+                FillWeight = 42F,
+                MinimumWidth = 140
+            },
+            new DataGridViewTextBoxColumn
+            {
+                Name = "BolumAdi",
+                DataPropertyName = "BolumAdi",
+                HeaderText = "Bölüm",
+                FillWeight = 26F,
+                MinimumWidth = 95
+            },
+            new DataGridViewTextBoxColumn
+            {
+                Name = "UzmanlikAlani",
+                DataPropertyName = "UzmanlikAlani",
+                HeaderText = "Uzmanlık",
+                FillWeight = 28F,
+                MinimumWidth = 95
+            });
         dgvAtamalar.BackgroundColor = Color.White;
         lblAtamaBilgi.Text = "Atama için önce hizmet seçiniz.";
-        lblAtamaBilgi.Location = new Point(18, 143);
+        lblAtamaBilgi.Location = new Point(18, 199);
         lblAtamaBilgi.Size = new Size(235, 30);
         lblAtamaBilgi.AutoSize = false;
         lblAtamaBilgi.Font = new Font("Segoe UI", 8F);
         lblAtamaBilgi.TextAlign = ContentAlignment.MiddleLeft;
         lblAtamaBilgi.ForeColor = Color.FromArgb(87, 111, 144);
         btnAtamaKaldir.Text = "Atamayı Kaldır";
-        btnAtamaKaldir.Location = new Point(264, 146);
+        btnAtamaKaldir.Location = new Point(264, 199);
         btnAtamaKaldir.Size = new Size(184, 31);
         btnAtamaKaldir.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
         btnAtamaKaldir.FlatStyle = FlatStyle.Flat;
@@ -334,7 +370,7 @@ partial class SaglikHizmetiYonetimFormu
         btnAtamaKaldir.ForeColor = Color.FromArgb(150, 10, 10);
         btnAtamaKaldir.Cursor = Cursors.Hand;
         btnKapat.Text = "Geri Dön";
-        btnKapat.Location = new Point(1052, 792);
+        btnKapat.Location = new Point(552, 792);
         btnKapat.Size = new Size(181, 40);
         btnKapat.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
         btnKapat.FlatStyle = FlatStyle.Flat;

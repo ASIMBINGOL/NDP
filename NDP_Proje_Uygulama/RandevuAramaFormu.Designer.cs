@@ -122,6 +122,7 @@ partial class RandevuAramaFormu
         grpFiltre.TabIndex = 1;
         grpFiltre.TabStop = false;
         grpFiltre.Text = "Randevu Kriterleri";
+        grpFiltre.Enter += grpFiltre_Enter;
         // 
         // lblKurum
         // 

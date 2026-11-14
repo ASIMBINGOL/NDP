@@ -167,5 +167,10 @@ namespace NDP_Proje_Uygulama
         {
 
         }
+
+        private void pnlMarka_Paint(object sender, PaintEventArgs e)
+        {
+
+        }
     }
 }

@@ -270,9 +270,9 @@ public partial class DoktorPaneli : Form
                            (randevu.KayitDurumu == "Beklemede" ||
                             randevu.KayitDurumu == "Onaylandi") &&
                            randevu.BaslangicTarihiSaati > simdi;
-        btnTamamla.Enabled = !_islemDevamEdiyor && randevu != null &&
-                            randevu.KayitDurumu == "Onaylandi" &&
-                            randevu.BitisTarihiSaati <= simdi;
+// Buton tıklanabilir olsun.
+// İşlemin uygunluğu tıklandığında kontrol edilecek.
+btnTamamla.Enabled = !_islemDevamEdiyor;
     }
 
     private async void btnYenile_Click(object? sender, EventArgs e)
@@ -310,12 +310,69 @@ public partial class DoktorPaneli : Form
             "Tamamla" => secili.KayitDurumu == "Onaylandi" && secili.BitisTarihiSaati <= simdi,
             _ => false
         };
+
         if (!izinli)
         {
-            MessageBox.Show("Bu randevunun durumu veya zamanı seçilen işleme uygun değil.",
-                "İşlem Yapılamadı", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            if (islem == "Tamamla")
+            {
+                string uyari;
+
+                switch (secili.KayitDurumu)
+                {
+                    case "Beklemede":
+                        uyari =
+                            "Muayeneyi tamamlamak için öncelikle " +
+                            "randevuyu onaylamanız gerekiyor.";
+                        break;
+
+                    case "IptalEdildi":
+                        uyari =
+                            "Bu randevu iptal edilmiştir. " +
+                            "İptal edilen bir randevunun " +
+                            "muayenesi tamamlanamaz.";
+                        break;
+
+                    case "Tamamlandi":
+                        uyari =
+                            "Bu randevunun muayenesi zaten tamamlanmış.";
+                        break;
+
+                    case "Onaylandi":
+                        uyari =
+                            "Bu randevunun muayene süresi henüz dolmadı.\n\n" +
+                            $"Randevu tarihi: {secili.BaslangicTarihiSaati:dd.MM.yyyy}\n" +
+                            $"Başlangıç saati: {secili.BaslangicTarihiSaati:HH:mm}\n" +
+                            $"Bitiş saati: {secili.BitisTarihiSaati:HH:mm}\n\n" +
+                            "Randevu bitiş saatinden sonra " +
+                            "muayeneyi tamamlayabilirsiniz.";
+                        break;
+
+                    default:
+                        uyari =
+                            "Bu randevu için muayene tamamlama " +
+                            "işlemi gerçekleştirilemez.";
+                        break;
+                }
+
+                MessageBox.Show(
+                    uyari,
+                    "Muayene Tamamlama Uyarısı",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+
+                return;
+            }
+
+            MessageBox.Show(
+                "Bu randevunun durumu veya zamanı " +
+                "seçilen işleme uygun değil.",
+                "İşlem Yapılamadı",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
+
             return;
         }
+
 
         string eylem = islem switch
         {

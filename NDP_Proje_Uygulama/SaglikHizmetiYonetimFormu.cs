@@ -224,6 +224,7 @@ public partial class SaglikHizmetiYonetimFormu : Form
             txtAd.Clear();
             txtAciklama.Clear();
             nudSure.Value = 30;
+            nudSure.Enabled = true;
             nudUcret.Value = 0;
             lblDurum.Text = "Durum: Yeni hizmet (aktif açılır)";
             btnDurum.Text = "Aktif / Pasif";
@@ -255,6 +256,7 @@ public partial class SaglikHizmetiYonetimFormu : Form
             txtAd.Text = hizmet.Ad;
             txtAciklama.Text = hizmet.Aciklama;
             nudSure.Value = Math.Clamp(hizmet.SureDakika, (int)nudSure.Minimum, (int)nudSure.Maximum);
+            nudSure.Enabled = false;
             nudUcret.Value = Math.Clamp(hizmet.UcretKurus / 100m, nudUcret.Minimum, nudUcret.Maximum);
             lblDurum.Text = hizmet.AktifMi ? "Durum: Aktif" : "Durum: Pasif";
             btnDurum.Text = hizmet.AktifMi ? "Pasifleştir" : "Aktifleştir";

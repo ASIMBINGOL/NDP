@@ -25,47 +25,86 @@ public sealed class BolumYonetimServisi : YetkiliYonetimServisi<BolumBilgisi>
             .OrderBy(b => b.Kurum!.Ad).ThenBy(b => b.Ad)
             .Select(b => new BolumBilgisi
             {
-                Id = b.Id, KurumId = b.KurumId, KurumAdi = b.Kurum!.Ad,
-                Ad = b.Ad, Aciklama = b.Aciklama ?? ""
+                Id = b.Id,
+                KurumId = b.KurumId,
+                KurumAdi = b.Kurum!.Ad,
+                Ad = b.Ad,
+                Aciklama = b.Aciklama ?? ""
             }).ToListAsync();
     }
 
     public override async Task<int> KaydetAsync(BolumBilgisi kayit)
     {
         await YoneticiYetkisiniDogrulaAsync();
-        var ad = kayit.Ad.Trim();
-        var aciklama = kayit.Aciklama.Trim();
-        if (ad.Length is < 2 or > 100 || aciklama.Length > 500)
-            throw new InvalidOperationException("Bölüm adı 2-100, açıklama en fazla 500 karakter olmalı.");
-        if (!await Baglam.Kurumlar.AnyAsync(k => k.Id == kayit.KurumId && k.AktifMi))
-            throw new InvalidOperationException("Aktif bir kurum seçiniz.");
-        if (await Baglam.Bolumler.AnyAsync(b => b.KurumId == kayit.KurumId &&
-                                            b.Ad == ad && b.Id != kayit.Id))
-            throw new InvalidOperationException("Bu kurumda aynı adlı bölüm zaten mevcut.");
 
-        Bolum bolum;
+        string ad = (kayit.Ad ?? "").Trim();
+        string aciklama = (kayit.Aciklama ?? "").Trim();
+
+        if (ad.Length is < 2 or > 100 || aciklama.Length > 500)
+            throw new InvalidOperationException(
+                "Bölüm adı 2-100, açıklama en fazla 500 karakter olmalı.");
+
+        // Doğrulamalar ile kayıt işlemini aynı transaction'da yap.
+        await using var islem = await Baglam.Database.BeginTransactionAsync();
+
+        if (!await Baglam.Kurumlar.AnyAsync(k =>
+                k.Id == kayit.KurumId && k.AktifMi))
+            throw new InvalidOperationException("Aktif bir kurum seçiniz.");
+
+        if (await Baglam.Bolumler.AnyAsync(b =>
+                b.KurumId == kayit.KurumId &&
+                b.Ad == ad && b.Id != kayit.Id))
+            throw new InvalidOperationException(
+                "Bu kurumda aynı adlı bölüm zaten mevcut.");
+
         if (kayit.Id == 0)
         {
-            bolum = new Bolum();
-            Baglam.Bolumler.Add(bolum);
-        }
-        else
-        {
-            bolum = await Baglam.Bolumler.FirstOrDefaultAsync(b => b.Id == kayit.Id)
-                ?? throw new InvalidOperationException("Bölüm bulunamadı.");
-            if (bolum.KurumId != kayit.KurumId)
+            var yeniBolum = new Bolum
             {
-                bool iliski = await Baglam.Calisanlar.AnyAsync(c => c.BolumId == bolum.Id && c.KurumId == bolum.KurumId)
-                    || await Baglam.SaglikHizmetleri.AnyAsync(h => h.BolumId == bolum.Id && h.KurumId == bolum.KurumId);
-                if (iliski)
-                    throw new InvalidOperationException("Çalışanı veya hizmeti olan bölüm başka kuruma taşınamaz.");
-            }
+                KurumId = kayit.KurumId,
+                Ad = ad,
+                Aciklama = aciklama
+            };
+
+            Baglam.Bolumler.Add(yeniBolum);
+            await Baglam.SaveChangesAsync();
+            await islem.CommitAsync();
+            return yeniBolum.Id;
         }
-        bolum.KurumId = kayit.KurumId;
-        bolum.Ad = ad;
-        bolum.Aciklama = aciklama;
-        await Baglam.SaveChangesAsync();
-        return bolum.Id;
+
+        // İzlenen bir varlığın alternatif anahtarını doğrudan değiştiremeyiz.
+        var mevcut = await Baglam.Bolumler.AsNoTracking()
+            .FirstOrDefaultAsync(b => b.Id == kayit.Id)
+            ?? throw new InvalidOperationException("Bölüm bulunamadı.");
+
+        if (mevcut.KurumId != kayit.KurumId)
+        {
+            bool calisaniVarMi = await Baglam.Calisanlar
+                .AnyAsync(c => c.BolumId == kayit.Id);
+
+            bool hizmetiVarMi = await Baglam.SaglikHizmetleri
+                .AnyAsync(h => h.BolumId == kayit.Id);
+
+            if (calisaniVarMi || hizmetiVarMi)
+                throw new InvalidOperationException(
+                    "Bu bölüme bağlı çalışan veya sağlık hizmeti var. " +
+                    "Önce ilişkili kayıtları yönetin; bölümün kurumu değiştirilemez.");
+        }
+
+        // ExecuteUpdate, alternatif anahtarın izlenerek değiştirilmesi
+        // hatasına yol açmadan aynı bölüm Id'sini korur.
+        int degisen = await Baglam.Bolumler
+            .Where(b => b.Id == kayit.Id)
+            .ExecuteUpdateAsync(ayarlar => ayarlar
+                .SetProperty(b => b.KurumId, kayit.KurumId)
+                .SetProperty(b => b.Ad, ad)
+                .SetProperty(b => b.Aciklama, aciklama));
+
+        if (degisen != 1)
+            throw new InvalidOperationException("Bölüm güncellenemedi.");
+
+        await islem.CommitAsync();
+        return kayit.Id;
     }
 
     public override async Task SilAsync(int id)

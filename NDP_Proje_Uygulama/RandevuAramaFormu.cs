@@ -377,12 +377,63 @@ public partial class RandevuAramaFormu : Form
                 }
             }
 
-            var sirali = sonuc.OrderBy(s => s.Baslangic).Take(1500).ToList();
+
+            var sirali = sonuc
+                .OrderBy(s => s.Baslangic)
+                .Take(1500)
+                .ToList();
+
             dgvUygunSaatler.DataSource = sirali;
             dgvUygunSaatler.ClearSelection();
-            lblSonucBilgisi.Text = sirali.Count == 0
-                ? "Seçilen tarihlerde boş saat bulunamadı. Başka tarih deneyiniz."
-                : $"{sirali.Count} uygun saat bulundu. Listeden birini seçiniz.";
+
+            if (sirali.Count == 0)
+            {
+                // Yalnızca tek bir gün seçilmişse
+                // hastanenin o gün kapalı olup olmadığını kontrol et.
+                bool tekGunSecili = ilkGun.Date == sonGun.Date;
+
+                bool hastaneKapali = tekGunSecili &&
+                    mesailer.Any(m =>
+                        m.HaftaninGunu == (int)ilkGun.DayOfWeek &&
+                        m.KapaliMi);
+
+                string mesaj;
+
+                if (hastaneKapali)
+                {
+                    mesaj =
+                        $"Seçtiğiniz hastane {ilkGun:dd.MM.yyyy} " +
+                        "tarihinde kapalıdır.\n\n" +
+                        "Bu tarihte randevu oluşturulamaz.\n" +
+                        "Lütfen hastanenin açık olduğu başka bir gün seçiniz.";
+                }
+                else
+                {
+                    mesaj =
+                        "Seçtiğiniz tarih aralığında uygun randevu " +
+                        "saati bulunamadı.\n\n" +
+                        "Doktorun müsaitlik saatlerini veya " +
+                        "başka bir tarihi deneyiniz.";
+                }
+
+                lblSonucBilgisi.Text = mesaj;
+
+                MessageBox.Show(
+                    this,
+                    mesaj,
+                    hastaneKapali
+                        ? "Hastane Kapalı"
+                        : "Uygun Randevu Bulunamadı",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+            }
+            else
+            {
+                lblSonucBilgisi.Text =
+                    $"{sirali.Count} uygun saat bulundu. " +
+                    "Listeden birini seçiniz.";
+            }
+
         }
         catch (InvalidOperationException hata)
         {
@@ -495,5 +546,10 @@ public partial class RandevuAramaFormu : Form
         long adim = TimeSpan.FromMinutes(15).Ticks;
         long yukari = ((an.Ticks + adim - 1) / adim) * adim;
         return new DateTime(yukari, an.Kind);
+    }
+
+    private void grpFiltre_Enter(object sender, EventArgs e)
+    {
+
     }
 }
