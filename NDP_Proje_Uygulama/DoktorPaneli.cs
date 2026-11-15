@@ -49,6 +49,10 @@ public partial class DoktorPaneli : Form
         public string Ucret { get; init; } = "";
         public string Durum { get; init; } = "";
 
+        // Saglik personelinin kaydettigi gelis bilgisi. Randevunun Durum alanindan bagimsizdir.
+        [DisplayName("Hasta Gelişi")]
+        public string HastaGelisi { get; init; } = "Gelmedi";
+
         // Veritabanindaki gercek durum is kurallari icin korunur.
         [Browsable(false)]
         public string KayitDurumu { get; init; } = "";
@@ -207,6 +211,9 @@ public partial class DoktorPaneli : Form
                 Ucret = (r.UcretKurusKayit / 100m).ToString("N2") + " TL",
                 KayitDurumu = r.Durum,
                 Durum = GorunenDurum(r.Durum, r.BaslangicTarihiSaati),
+                HastaGelisi = r.HastaGelisTarihiSaati.HasValue
+                    ? $"Geldi ({r.HastaGelisTarihiSaati.Value:HH:mm})"
+                    : "Gelmedi",
                 BaslangicTarihiSaati = r.BaslangicTarihiSaati,
                 BitisTarihiSaati = r.BitisTarihiSaati
             }).ToList();
@@ -242,6 +249,11 @@ public partial class DoktorPaneli : Form
 
         dgvRandevular.DataSource = null;
         dgvRandevular.DataSource = gorunen;
+        if (dgvRandevular.Columns[nameof(RandevuSatiri.HastaGelisi)] is DataGridViewColumn gelisSutunu)
+        {
+            gelisSutunu.HeaderText = "Hasta Gelişi";
+            gelisSutunu.MinimumWidth = 115;
+        }
         dgvRandevular.ClearSelection();
         lblListeBilgisi.Text = gorunen.Count == 0
             ? "Bu filtrede gösterilecek randevu bulunmuyor."

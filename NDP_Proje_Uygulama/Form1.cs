@@ -1,4 +1,4 @@
-using NDPProje.IsKurallari;
+﻿using NDPProje.IsKurallari;
 namespace NDP_Proje_Uygulama
 {
     public partial class Form1 : Form
@@ -130,7 +130,21 @@ namespace NDP_Proje_Uygulama
 
 
                     case "SaglikPersoneli":
-                        // Personel yetkileri ayrica belirlenecek.
+                        using (var personelPaneli = new SaglikPersoneliPaneli(
+                            sonuc.KullaniciId,
+                            sonuc.AdSoyad))
+                        {
+                            Hide();
+                            try
+                            {
+                                personelPaneli.ShowDialog(this);
+                            }
+                            finally
+                            {
+                                Show();
+                                txtSifre.Clear();
+                            }
+                        }
                         break;
 
                     default:

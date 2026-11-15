@@ -261,6 +261,9 @@ namespace NDPProje.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTime?>("HastaGelisTarihiSaati")
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("HastaId")
                         .HasColumnType("INTEGER");
 

@@ -303,17 +303,19 @@ public sealed class SaglikHizmetiYonetimServisi
         // Pasifleştirme
         if (hizmet.AktifMi)
         {
-            bool gelecekRandevu =
+            DateTime simdi = DateTime.Now;
+            // Başlamış ancak henüz bitmemiş randevuların hizmeti de pasifleştirilemez.
+            bool bitmemisRandevu =
                 await Baglam.Randevular.AnyAsync(r =>
                     r.SaglikHizmetiId == hizmetId &&
-                    r.BaslangicTarihiSaati > DateTime.Now &&
+                    r.BitisTarihiSaati > simdi &&
                     (r.Durum == "Beklemede" ||
                      r.Durum == "Onaylandi"));
 
-            if (gelecekRandevu)
+            if (bitmemisRandevu)
             {
                 throw new InvalidOperationException(
-                    "Gelecekte aktif randevusu bulunan hizmet pasifleştirilemez.");
+                    "Devam eden veya gelecekte aktif randevusu bulunan hizmet pasifleştirilemez.");
             }
         }
         // Aktifleştirme

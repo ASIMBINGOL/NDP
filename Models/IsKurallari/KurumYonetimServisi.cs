@@ -99,12 +99,14 @@ public sealed class KurumYonetimServisi : YetkiliYonetimServisi<KurumBilgisi>
         {
             bool aktifAltKurum = await Baglam.Kurumlar
                 .AnyAsync(k => k.UstKurumId == id && k.AktifMi);
-            bool gelecekRandevu = await Baglam.Randevular.AnyAsync(r =>
-                r.KurumId == id && r.BaslangicTarihiSaati > DateTime.Now &&
+            DateTime simdi = DateTime.Now;
+            // Başlamış ancak henüz bitmemiş randevular da korunmalıdır.
+            bool bitmemisRandevu = await Baglam.Randevular.AnyAsync(r =>
+                r.KurumId == id && r.BitisTarihiSaati > simdi &&
                 (r.Durum == "Beklemede" || r.Durum == "Onaylandi"));
-            if (aktifAltKurum || gelecekRandevu)
+            if (aktifAltKurum || bitmemisRandevu)
                 throw new InvalidOperationException(
-                    "Aktif alt kurum veya gelecek randevu varken kurum pasifleştirilemez.");
+                    "Aktif alt kurum veya devam eden/gelecek randevu varken kurum pasifleştirilemez.");
         }
         kurum.AktifMi = !kurum.AktifMi;
         await Baglam.SaveChangesAsync();

@@ -99,8 +99,8 @@ public sealed class CalismaSaatiYonetimServisi : YetkiliYonetimServisi<CalismaSa
                 throw new InvalidOperationException("Mevcut kaydın kurumu veya günü değiştirilemez. Ayrı bir gün kaydı oluşturun.");
         }
 
-        // Kural: bekleyen/onaylanan gelecekteki randevular çalışma saati dışında bırakılamaz.
-        await GelecekRandevulariDogrulaAsync(kayit.KurumId, kayit.HaftaninGunu,
+        // Kural: bekleyen/onaylanan devam eden ve gelecekteki randevular mesai dışına çıkarılamaz.
+        await BitmemisRandevulariDogrulaAsync(kayit.KurumId, kayit.HaftaninGunu,
             kayit.KapaliMi, acilis, kapanis);
 
         mesai.KapaliMi = kayit.KapaliMi;
@@ -116,20 +116,20 @@ public sealed class CalismaSaatiYonetimServisi : YetkiliYonetimServisi<CalismaSa
         var mesai = await Baglam.KurumCalismaSaatleri
             .FirstOrDefaultAsync(s => s.Id == id)
             ?? throw new InvalidOperationException("Silinecek çalışma saati bulunamadı.");
-        // Haftanın bu gününde aktif gelecek randevu varsa mesaiyi silmek onları geçersiz bırakır.
-        await GelecekRandevulariDogrulaAsync(mesai.KurumId, mesai.HaftaninGunu,
+        // Haftanın bu gününde devam eden/gelecek aktif randevu varsa mesaiyi silmek onları geçersiz bırakır.
+        await BitmemisRandevulariDogrulaAsync(mesai.KurumId, mesai.HaftaninGunu,
             kapaliMi: true, acilis: "", kapanis: "");
         Baglam.KurumCalismaSaatleri.Remove(mesai);
         await Baglam.SaveChangesAsync();
     }
 
-    private async Task GelecekRandevulariDogrulaAsync(int kurumId, int gun,
+    private async Task BitmemisRandevulariDogrulaAsync(int kurumId, int gun,
         bool kapaliMi, string acilis, string kapanis)
     {
         DateTime simdi = DateTime.Now;
         // SQLite DateTime.DayOfWeek çevirisini garanti etmediğimiz için gün süzmesini bellekte yapıyoruz.
         var randevular = await Baglam.Randevular.AsNoTracking()
-            .Where(r => r.KurumId == kurumId && r.BaslangicTarihiSaati > simdi &&
+            .Where(r => r.KurumId == kurumId && r.BitisTarihiSaati > simdi &&
                         (r.Durum == "Beklemede" || r.Durum == "Onaylandi"))
             .Select(r => new { r.Id, r.BaslangicTarihiSaati, r.BitisTarihiSaati })
             .ToListAsync();
@@ -145,7 +145,7 @@ public sealed class CalismaSaatiYonetimServisi : YetkiliYonetimServisi<CalismaSa
                 randevu.BitisTarihiSaati.TimeOfDay > kapanisSaat;
             if (disarida)
                 throw new InvalidOperationException(
-                    $"{GunAdi(gun)} günü için #{randevu.Id} numaralı gelecek randevu bu çalışma saatiyle çakışıyor. " +
+                    $"{GunAdi(gun)} günü için #{randevu.Id} numaralı devam eden veya gelecek randevu bu çalışma saatiyle çakışıyor. " +
                     "Önce randevuyu iptal edin veya çalışma saatlerini koruyun.");
         }
     }

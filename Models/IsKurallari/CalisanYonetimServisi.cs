@@ -154,6 +154,21 @@ public sealed class CalisanYonetimServisi : YetkiliYonetimServisi<CalisanBilgisi
                 throw new InvalidOperationException("Bu çalışan zaten seçilen kurumda kayıtlı.");
         }
 
+        // Aynı kurum içinde bölüm değişikliği mevcut hizmet atamalarını
+        // ve randevu geçmişini tutarsız hale getirebilir.
+        // Kurum değişikliği için yukarıdaki kontrol aynen korunur.
+        if (mevcut.BolumId != kayit.BolumId)
+        {
+            bool iliskiliHizmetVeyaRandevuVarMi =
+                await Baglam.CalisanHizmetleri.AnyAsync(h => h.CalisanId == mevcut.Id) ||
+                await Baglam.Randevular.AnyAsync(r => r.CalisanId == mevcut.Id);
+
+            if (iliskiliHizmetVeyaRandevuVarMi)
+                throw new InvalidOperationException(
+                    "Hizmet ataması veya randevu geçmişi olan çalışanın bölümü değiştirilemez. " +
+                    "Önce ilişkileri kontrol ediniz; mevcut randevu geçmişi korunmalıdır.");
+        }
+
         mevcut.Kullanici.AdSoyad = ad;
         mevcut.Kullanici.Eposta = eposta;
         if (yeniSifre.Length > 0)
@@ -200,20 +215,21 @@ public sealed class CalisanYonetimServisi : YetkiliYonetimServisi<CalisanBilgisi
                 "Kullanıcı hesabı bulunamadı.");
 
         // Aktif çalışan pasifleştirilmek isteniyorsa
-        // gelecekteki randevuları koru.
+        // devam eden ve gelecekteki randevuları koru.
         if (calisan.AktifMi)
         {
-            bool gelecekRandevuVarMi =
+            DateTime simdi = DateTime.Now;
+            bool bitmemisRandevuVarMi =
                 await Baglam.Randevular.AnyAsync(r =>
                     r.CalisanId == calisanId &&
-                    r.BaslangicTarihiSaati > DateTime.Now &&
+                    r.BitisTarihiSaati > simdi &&
                     (r.Durum == "Beklemede" ||
                      r.Durum == "Onaylandi"));
 
-            if (gelecekRandevuVarMi)
+            if (bitmemisRandevuVarMi)
             {
                 throw new InvalidOperationException(
-                    "Bu çalışanın gelecekte bekleyen veya " +
+                    "Bu çalışanın devam eden veya gelecekte bekleyen/" +
                     "onaylanmış randevuları bulunuyor. " +
                     "Önce bu randevuları yönetin.");
             }

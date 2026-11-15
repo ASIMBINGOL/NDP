@@ -1,4 +1,3 @@
-
 using System;
 using System.Data;
 using System.Globalization;
@@ -61,6 +60,22 @@ public class RandevuYonetimi
                 "Hasta kaydı bulunamadı.");
         }
 
+        // Hasta profiline bağlı kullanıcı hesabı aktif ve Hasta rolünde olmalı.
+        // Yalnızca Hasta tablosunda bir kaydın bulunması yeterli değildir.
+        bool hastaHesabiGecerliMi = await _baglam.Hastalar
+            .AnyAsync(
+                h => h.Id == hastaId
+                     && h.Kullanici != null
+                     && h.Kullanici.AktifMi
+                     && h.Kullanici.Rol == "Hasta",
+                iptalBelirteci);
+
+        if (!hastaHesabiGecerliMi)
+        {
+            throw new InvalidOperationException(
+                "Hasta kullanıcı hesabı pasif veya rolü geçersiz.");
+        }
+
         // Çalışanın uygunluk aralığını bul.
         var uygunluk = await _baglam.UygunlukAraliklari
             .SingleOrDefaultAsync(
@@ -85,6 +100,24 @@ public class RandevuYonetimi
         {
             throw new InvalidOperationException(
                 "Çalışan bulunamadı veya aktif değil.");
+        }
+
+        // Randevu yalnızca aktif Doktor profiline ve aktif Doktor
+        // rolündeki kullanıcı hesabına bağlı bir çalışan için oluşturulabilir.
+        bool doktorHesabiGecerliMi = await _baglam.Doktorlar
+            .AnyAsync(
+                d => d.Id == calisanId
+                     && d.KurumId == uygunluk.KurumId
+                     && d.AktifMi
+                     && d.Kullanici != null
+                     && d.Kullanici.AktifMi
+                     && d.Kullanici.Rol == "Doktor",
+                iptalBelirteci);
+
+        if (!doktorHesabiGecerliMi)
+        {
+            throw new InvalidOperationException(
+                "Doktor kullanıcı hesabı pasif veya rolü geçersiz.");
         }
 
         // Kurum aktif olmalı.

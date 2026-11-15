@@ -1,4 +1,4 @@
-#nullable enable
+﻿#nullable enable
 using System.ComponentModel;
 using Microsoft.EntityFrameworkCore;
 using NDPProje.IsKurallari;
@@ -50,6 +50,7 @@ public partial class CalismaSaatiYonetimFormu : Form
     public CalismaSaatiYonetimFormu()
     {
         InitializeComponent();
+        FiltreleriBaslat();
         Load += CalismaSaatiYonetimFormu_Load;
         dgvSaatler.SelectionChanged += (_, _) => SeciliKaydiGoster();
         chkKapali.CheckedChanged += (_, _) => SaatAlanlariniGuncelle();
@@ -200,6 +201,7 @@ public partial class CalismaSaatiYonetimFormu : Form
                     Kapanis = k.KapaliMi ? "—" : k.KapanisSaati,
                     Durum = k.KapaliMi ? "Kapalı" : "Açık"
                 }).ToList();
+                FiltreKaynakYenile();
                 if (dgvSaatler.Columns.Contains("Id")) dgvSaatler.Columns["Id"]!.HeaderText = "No";
                 if (dgvSaatler.Columns.Contains("Gun")) dgvSaatler.Columns["Gun"]!.HeaderText = "Gün";
                 if (dgvSaatler.Columns.Contains("Acilis")) dgvSaatler.Columns["Acilis"]!.HeaderText = "Açılış";
@@ -213,7 +215,8 @@ public partial class CalismaSaatiYonetimFormu : Form
                 cmbGun.DisplayMember = nameof(GunSecenegi.Ad);
                 cmbGun.ValueMember = nameof(GunSecenegi.Id);
                 cmbGun.DataSource = _gunler.ToList();
-                lblKayitSayisi.Text = $"Toplam {_kayitlar.Count} çalışma günü tanımı bulundu.";
+                FiltreSecenekleriniYukle();
+                FiltreleriUygula(false);
             }
             finally { _dolduruluyor = false; }
         });
@@ -288,5 +291,125 @@ public partial class CalismaSaatiYonetimFormu : Form
         if (!tamam) return;
         await ListeyiYukleAsync();
         MessageBox.Show("Çalışma günü kaydı silindi.", "Başarılı", MessageBoxButtons.OK, MessageBoxIcon.Information);
+    }
+
+    private bool _filtreYukleniyor;
+    private List<MesaiSatiri> _filtreKaynak = new();
+
+    private void FiltreleriBaslat()
+    {
+        _filtreYukleniyor = true;
+        cmbFiltreDurum.Items.AddRange(new object[] { "Tümü", "Açık", "Kapalı" });
+        cmbFiltreDurum.SelectedIndex = 0;
+        FiltreSecenekleriDoldur(cmbFiltreKurum, Array.Empty<FiltreSecenegi>(), "Tüm hastaneler");
+        FiltreSecenekleriDoldur(cmbFiltreGun,
+            _gunler.Select(g => new FiltreSecenegi(g.Id, g.Ad)), "Tüm günler", -1);
+        _filtreYukleniyor = false;
+        cmbFiltreKurum.SelectedIndexChanged += (_, _) => FiltreleriUygula();
+        cmbFiltreGun.SelectedIndexChanged += (_, _) => FiltreleriUygula();
+        cmbFiltreDurum.SelectedIndexChanged += (_, _) => FiltreleriUygula();
+    }
+
+    private void FiltreKaynakYenile() =>
+        _filtreKaynak = (dgvSaatler.DataSource as List<MesaiSatiri>)?.ToList() ?? new();
+
+    private void FiltreSecenekleriniYukle()
+    {
+        _filtreYukleniyor = true;
+        try
+        {
+            FiltreSecenekleriDoldur(cmbFiltreKurum,
+                _kayitlar.GroupBy(k => k.KurumId)
+                    .Select(g => new FiltreSecenegi(g.Key, g.First().KurumAdi))
+                    .OrderBy(k => k.Ad), "Tüm hastaneler");
+        }
+        finally { _filtreYukleniyor = false; }
+    }
+
+    private void FiltreleriUygula(bool formuTemizle = true)
+    {
+        if (_filtreYukleniyor) return;
+        int kurumId = SeciliFiltreId(cmbFiltreKurum);
+        int gunId = SeciliFiltreId(cmbFiltreGun, -1);
+        string durum = cmbFiltreDurum.SelectedItem?.ToString() ?? "Tümü";
+        var idler = _kayitlar.Where(k =>
+            (kurumId == 0 || k.KurumId == kurumId) &&
+            (gunId == -1 || k.HaftaninGunu == gunId) &&
+            (durum == "Tümü" || (k.KapaliMi ? "Kapalı" : "Açık") == durum))
+            .Select(k => k.Id).ToHashSet();
+        var gorunen = _filtreKaynak.Where(s => idler.Contains(s.Id)).ToList();
+        bool eski = _dolduruluyor;
+        _dolduruluyor = true;
+        try
+        {
+            dgvSaatler.DataSource = null;
+            dgvSaatler.DataSource = gorunen;
+            if (dgvSaatler.Columns.Contains("Id")) dgvSaatler.Columns["Id"]!.HeaderText = "No";
+            if (dgvSaatler.Columns.Contains("Gun")) dgvSaatler.Columns["Gun"]!.HeaderText = "Gün";
+            if (dgvSaatler.Columns.Contains("Acilis")) dgvSaatler.Columns["Acilis"]!.HeaderText = "Açılış";
+            if (dgvSaatler.Columns.Contains("Kapanis")) dgvSaatler.Columns["Kapanis"]!.HeaderText = "Kapanış";
+            dgvSaatler.ClearSelection();
+            dgvSaatler.CurrentCell = null;
+        }
+        finally { _dolduruluyor = eski; }
+        lblKayitSayisi.Text = $"Gösterilen: {gorunen.Count} / Toplam: {_filtreKaynak.Count} çalışma günü";
+        if (formuTemizle) FormuTemizle();
+    }
+
+    // Bu filtreleme yardımcıları sadece bu forma aittir.
+    // Model ve iş kuralları katmanlarına ek bir bağımlılık getirmez.
+    private sealed class FiltreSecenegi
+    {
+        public int Id { get; }
+        public string Ad { get; }
+
+        public FiltreSecenegi(int id, string ad)
+        {
+            Id = id;
+            Ad = ad;
+        }
+
+        public override string ToString() => Ad;
+    }
+
+    private static int SeciliFiltreId(ComboBox kutu, int tumId = 0)
+    {
+        return (kutu.SelectedItem as FiltreSecenegi)?.Id ?? tumId;
+    }
+
+    private static void FiltreSecenekleriDoldur(
+        ComboBox kutu,
+        IEnumerable<FiltreSecenegi> secenekler,
+        string tumYazisi,
+        int tumId = 0)
+    {
+        int eskiId = SeciliFiltreId(kutu, tumId);
+        var liste = new List<FiltreSecenegi>
+        {
+            new(tumId, tumYazisi)
+        };
+        liste.AddRange(secenekler.Where(s => s.Id != tumId)
+            .GroupBy(s => s.Id).Select(g => g.First()));
+
+        kutu.BeginUpdate();
+        try
+        {
+            kutu.Items.Clear();
+            foreach (var secenek in liste)
+                kutu.Items.Add(secenek);
+            kutu.SelectedItem = liste.FirstOrDefault(s => s.Id == eskiId)
+                ?? liste[0];
+        }
+        finally
+        {
+            kutu.EndUpdate();
+        }
+    }
+
+    private static bool FiltreMetinEslesir(string? kaynak, string? aranan)
+    {
+        return string.IsNullOrWhiteSpace(aranan) ||
+            (kaynak ?? "").Contains(
+                aranan.Trim(), StringComparison.CurrentCultureIgnoreCase);
     }
 }

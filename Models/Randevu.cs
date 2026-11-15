@@ -1,4 +1,4 @@
-
+﻿
 namespace NDPProje.Modeller;
 
 public class Randevu
@@ -25,6 +25,9 @@ public class Randevu
     public long UcretKurusKayit { get; set; }
 
     public string Durum { get; set; } = "Beklemede";
+
+    // Null ise hasta henüz gelmedi. Randevunun Durum alanından bağımsızdır.
+    public DateTime? HastaGelisTarihiSaati { get; set; }
 
     public Hasta? Hasta { get; set; }
 

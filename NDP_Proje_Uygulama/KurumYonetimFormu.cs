@@ -1,4 +1,4 @@
-#nullable enable
+﻿#nullable enable
 using System.ComponentModel;
 using Microsoft.EntityFrameworkCore;
 using NDPProje.IsKurallari;
@@ -22,6 +22,7 @@ public partial class KurumYonetimFormu : Form
     public KurumYonetimFormu()
     {
         InitializeComponent();
+        FiltreleriBaslat();
         cmbTur.Items.AddRange(new object[] { "Hastane", "Klinik", "SaglikMerkezi" });
         dgvKurumlar.SelectionChanged += (_, _) => SecimDegisti();
         Load += async (_, _) =>
@@ -70,8 +71,11 @@ public partial class KurumYonetimFormu : Form
             {
                 dgvKurumlar.DataSource = null;
                 dgvKurumlar.DataSource = _kurumlar;
+                FiltreKaynakYenile();
                 dgvKurumlar.ClearSelection();
                 UstKurumListesiniYukle(null);
+                FiltreSecenekleriniYukle();
+                FiltreleriUygula(false);
             }
             finally { _listeDegisiyor = false; }
             FormuTemizle();
@@ -160,5 +164,105 @@ public partial class KurumYonetimFormu : Form
             MessageBox.Show("Kurum kalıcı olarak silindi.", "Başarılı");
         });
         await ListeyiYukleAsync();
+    }
+
+    private bool _filtreYukleniyor;
+    private List<KurumBilgisi> _filtreKaynak = new();
+
+    private void FiltreleriBaslat()
+    {
+        _filtreYukleniyor = true;
+        cmbFiltreTur.Items.AddRange(new object[] { "Tümü", "Hastane", "Klinik", "SaglikMerkezi" });
+        cmbFiltreDurum.Items.AddRange(new object[] { "Tümü", "Aktif", "Pasif" });
+        cmbFiltreTur.SelectedIndex = cmbFiltreDurum.SelectedIndex = 0;
+        _filtreYukleniyor = false;
+        cmbFiltreTur.SelectedIndexChanged += (_, _) => FiltreleriUygula();
+        cmbFiltreDurum.SelectedIndexChanged += (_, _) => FiltreleriUygula();
+        txtFiltreAra.TextChanged += (_, _) => FiltreleriUygula();
+    }
+
+    private void FiltreKaynakYenile() => _filtreKaynak = _kurumlar.ToList();
+    private void FiltreSecenekleriniYukle() { } // Tür ve durum seçenekleri sabittir.
+
+    private void FiltreleriUygula(bool formuTemizle = true)
+    {
+        if (_filtreYukleniyor) return;
+        string tur = cmbFiltreTur.SelectedItem?.ToString() ?? "Tümü";
+        string durum = cmbFiltreDurum.SelectedItem?.ToString() ?? "Tümü";
+        var gorunen = _filtreKaynak.Where(k =>
+            (tur == "Tümü" || k.KurumTuru == tur) &&
+            (durum == "Tümü" || (k.AktifMi ? "Aktif" : "Pasif") == durum) &&
+            (FiltreMetinEslesir(k.Ad, txtFiltreAra.Text) ||
+             FiltreMetinEslesir(k.Adres, txtFiltreAra.Text)))
+            .ToList();
+        bool eski = _listeDegisiyor;
+        _listeDegisiyor = true;
+        try
+        {
+            dgvKurumlar.DataSource = null;
+            dgvKurumlar.DataSource = gorunen;
+            dgvKurumlar.ClearSelection();
+            dgvKurumlar.CurrentCell = null;
+        }
+        finally { _listeDegisiyor = eski; }
+        grpListe.Text = $"Kayıtlı Kurumlar ({gorunen.Count}/{_filtreKaynak.Count})";
+        if (formuTemizle) FormuTemizle();
+    }
+
+    // Bu filtreleme yardımcıları sadece bu forma aittir.
+    // Model ve iş kuralları katmanlarına ek bir bağımlılık getirmez.
+    private sealed class FiltreSecenegi
+    {
+        public int Id { get; }
+        public string Ad { get; }
+
+        public FiltreSecenegi(int id, string ad)
+        {
+            Id = id;
+            Ad = ad;
+        }
+
+        public override string ToString() => Ad;
+    }
+
+    private static int SeciliFiltreId(ComboBox kutu, int tumId = 0)
+    {
+        return (kutu.SelectedItem as FiltreSecenegi)?.Id ?? tumId;
+    }
+
+    private static void FiltreSecenekleriDoldur(
+        ComboBox kutu,
+        IEnumerable<FiltreSecenegi> secenekler,
+        string tumYazisi,
+        int tumId = 0)
+    {
+        int eskiId = SeciliFiltreId(kutu, tumId);
+        var liste = new List<FiltreSecenegi>
+        {
+            new(tumId, tumYazisi)
+        };
+        liste.AddRange(secenekler.Where(s => s.Id != tumId)
+            .GroupBy(s => s.Id).Select(g => g.First()));
+
+        kutu.BeginUpdate();
+        try
+        {
+            kutu.Items.Clear();
+            foreach (var secenek in liste)
+                kutu.Items.Add(secenek);
+            kutu.SelectedItem = liste.FirstOrDefault(s => s.Id == eskiId)
+                ?? liste[0];
+        }
+        finally
+        {
+            kutu.EndUpdate();
+        }
+    }
+
+    private static bool FiltreMetinEslesir(string? kaynak, string? aranan)
+    {
+        return string.IsNullOrWhiteSpace(aranan) ||
+            (kaynak ?? "").Contains(
+                aranan.Trim(), StringComparison.CurrentCultureIgnoreCase);
     }
 }
